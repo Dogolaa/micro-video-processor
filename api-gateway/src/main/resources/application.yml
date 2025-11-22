@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: upload-service-route
+          uri: lb://UPLOAD-API
+          predicates:
+            - Path=/api/v1/videos/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://service-discovery:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
