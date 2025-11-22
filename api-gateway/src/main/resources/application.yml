@@ -1,9 +1,12 @@
 server:
   port: 8080
+  max-http-request-header-size: 16KB
 
 spring:
   application:
     name: api-gateway
+  codec:
+    max-in-memory-size: 20MB
   cloud:
     gateway:
       discovery:

@@ -1,16 +1,19 @@
 services:
+  # --- INFRAESTRUTURA ---
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.6.1
     container_name: micro_zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    networks:
+      - micro-network
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.6.1
     container_name: micro_kafka
     depends_on:
       - zookeeper
@@ -23,7 +26,8 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
+    networks:
+      - micro-network
 
   database:
     image: postgres:15
@@ -37,7 +41,10 @@ services:
       - "5436:5432"
     volumes:
       - postgres_micro_data:/var/lib/postgresql/data
+    networks:
+      - micro-network
 
+  # --- MICROSSERVIÇOS ---
 
   service-discovery:
     build:
@@ -55,6 +62,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    networks:
+      - micro-network
 
   api-gateway:
     build:
@@ -73,6 +82,33 @@ services:
       SERVER_PORT: 8080
       SPRING_CLOUD_GATEWAY_HTTPCLIENT_CONNECT_TIMEOUT: 10000
       SPRING_CLOUD_GATEWAY_HTTPCLIENT_RESPONSE_TIMEOUT: 60s
+    networks:
+      - micro-network
+
+  upload-api:
+    build:
+      context: ./upload-api
+      dockerfile: Dockerfile
+    container_name: micro_upload_api
+    ports:
+      - "8081:8081"
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    volumes:
+      - shared_video_storage:/app/storage/videos
+    networks:
+      - micro-network
 
 volumes:
   postgres_micro_data:
+  shared_video_storage:
+
+networks:
+  micro-network:
+    driver: bridge
