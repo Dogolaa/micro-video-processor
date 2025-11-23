@@ -26,6 +26,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_NUM_PARTITIONS: 4
     networks:
       - micro-network
 
@@ -100,6 +101,57 @@ services:
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    volumes:
+      - shared_video_storage:/app/storage/videos
+    networks:
+      - micro-network
+
+  transcoder:
+    build:
+      context: ./transcoder-service
+      dockerfile: Dockerfile
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: micro_kafka:29092
+    volumes:
+      - shared_video_storage:/app/storage/videos
+    networks:
+      - micro-network
+
+  resizer:
+    build:
+      context: ./resizer-service
+      dockerfile: Dockerfile
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: micro_kafka:29092
+    volumes:
+      - shared_video_storage:/app/storage/videos
+    networks:
+      - micro-network
+
+  watermarker:
+    build:
+      context: ./watermark-service
+      dockerfile: Dockerfile
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-discovery:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: micro_kafka:29092
     volumes:
       - shared_video_storage:/app/storage/videos
     networks:
